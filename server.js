@@ -49,9 +49,28 @@ import statesRoute from "./routes/states.js";
 import lgasRoute from "./routes/lgas.js";
 
 
-app.use("/api/v1/countries", countriesRoute);
-app.use("/api/v1/states", statesRoute);
-app.use("/api/v1/lgas", lgasRoute);
+import apiKey from "./middleware/apiKey.js";
+
+
+app.use(
+    "/api/v1/countries",
+    apiKey,
+    countriesRoute
+);
+
+
+app.use(
+    "/api/v1/states",
+    apiKey,
+    statesRoute
+);
+
+
+app.use(
+    "/api/v1/lgas",
+    apiKey,
+    lgasRoute
+);
 
 
 
