@@ -1,18 +1,8 @@
 import crypto from "crypto";
 import { supabase } from "../config/supabase.js";
 
-/*
-|--------------------------------------------------------------------------
-| Generate API Key
-|--------------------------------------------------------------------------
-| POST /api/v1/keys/generate
-|--------------------------------------------------------------------------
-*/
-
 export const generateApiKey = async (req, res) => {
     try {
-        // The authenticated user's UUID will eventually come from
-        // the Supabase authentication middleware.
         const userId = req.user?.id;
 
         if (!userId) {
@@ -22,17 +12,30 @@ export const generateApiKey = async (req, res) => {
             });
         }
 
-        // Check whether the user already has an active API key
+        // Check if this user already has an active API key
         const { data: existingKey, error: existingError } =
             await supabase
                 .from("api_keys")
-                .select("id, api_key, plan, status, country_id, daily_limit")
+                .select(`
+                    id,
+                    api_key,
+                    plan,
+                    status,
+                    country_id,
+                    daily_limit,
+                    requests_today,
+                    last_request_date,
+                    created_at
+                `)
                 .eq("user_id", userId)
                 .eq("status", "active")
                 .maybeSingle();
 
         if (existingError) {
-            console.error("Existing API key check error:", existingError);
+            console.error(
+                "Existing API key check error:",
+                existingError
+            );
 
             return res.status(500).json({
                 success: false,
@@ -40,7 +43,7 @@ export const generateApiKey = async (req, res) => {
             });
         }
 
-        // Starter users are allowed one active API key
+        // One active Starter key per user
         if (existingKey) {
             return res.status(409).json({
                 success: false,
@@ -51,36 +54,31 @@ export const generateApiKey = async (req, res) => {
                     plan: existingKey.plan,
                     status: existingKey.status,
                     country_id: existingKey.country_id,
-                    daily_limit: existingKey.daily_limit
+                    daily_limit: existingKey.daily_limit,
+                    requests_today: existingKey.requests_today,
+                    remaining:
+                        Math.max(
+                            0,
+                            existingKey.daily_limit -
+                            existingKey.requests_today
+                        ),
+                    created_at: existingKey.created_at
                 }
             });
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Generate secure API key
-        |--------------------------------------------------------------------------
-        */
-
-        const randomPart = crypto.randomBytes(32).toString("hex");
+        // Generate secure random key
+        const randomPart = crypto
+            .randomBytes(32)
+            .toString("hex");
 
         const apiKey = `DM_live_${randomPart}`;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Starter plan
-        |--------------------------------------------------------------------------
-        */
-
+        // Starter plan
         const plan = "starter";
         const dailyLimit = 100;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Insert API key
-        |--------------------------------------------------------------------------
-        */
-
+        // Create API key
         const { data, error } = await supabase
             .from("api_keys")
             .insert({
@@ -90,27 +88,34 @@ export const generateApiKey = async (req, res) => {
                 status: "active",
                 daily_limit: dailyLimit,
                 requests_today: 0,
-                last_request_date: new Date().toISOString().split("T")[0]
+                last_request_date:
+                    new Date().toISOString().split("T")[0]
             })
-            .select(
-                "id, api_key, plan, status, country_id, daily_limit, requests_today, last_request_date, created_at"
-            )
+            .select(`
+                id,
+                api_key,
+                plan,
+                status,
+                country_id,
+                daily_limit,
+                requests_today,
+                last_request_date,
+                created_at
+            `)
             .single();
 
         if (error) {
-            console.error("API key creation error:", error);
+            console.error(
+                "API key creation error:",
+                error
+            );
 
             return res.status(500).json({
                 success: false,
-                message: "Failed to create API key"
+                message: "Failed to create API key",
+                error: error.message
             });
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Return key
-        |--------------------------------------------------------------------------
-        */
 
         return res.status(201).json({
             success: true,
@@ -121,17 +126,31 @@ export const generateApiKey = async (req, res) => {
                 key: data.api_key,
                 plan: data.plan,
                 status: data.status,
+
+                // Country will be assigned later
+                // during onboarding.
                 country_id: data.country_id,
+
                 daily_limit: data.daily_limit,
                 requests_today: data.requests_today,
-                remaining_today:
-                    data.daily_limit - data.requests_today,
-                created_at: data.created_at
+
+                remaining:
+                    data.daily_limit -
+                    data.requests_today,
+
+                last_request_date:
+                    data.last_request_date,
+
+                created_at:
+                    data.created_at
             }
         });
 
     } catch (error) {
-        console.error("Generate API key error:", error);
+        console.error(
+            "Generate API key error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
