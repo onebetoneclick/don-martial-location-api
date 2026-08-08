@@ -11,7 +11,6 @@ const apiKey = async (req, res, next) => {
             });
         }
 
-        // Find API key in Supabase
         const { data: keyRecord, error } = await supabase
             .from("api_keys")
             .select("*")
@@ -25,7 +24,6 @@ const apiKey = async (req, res, next) => {
             });
         }
 
-        // Check whether the key is active
         if (keyRecord.status !== "active") {
             return res.status(403).json({
                 success: false,
@@ -33,20 +31,19 @@ const apiKey = async (req, res, next) => {
             });
         }
 
-        // Reset daily counter when a new day starts
-        const today = new Date().toISOString().split("T")[0];
+        const today = new Date()
+            .toISOString()
+            .split("T")[0];
 
         if (keyRecord.last_request_date !== today) {
-            const { data: resetKey, error: resetError } = await supabase
+            const { error: resetError } = await supabase
                 .from("api_keys")
                 .update({
                     requests_today: 0,
                     last_request_date: today,
                     updated_at: new Date().toISOString()
                 })
-                .eq("id", keyRecord.id)
-                .select()
-                .single();
+                .eq("id", keyRecord.id);
 
             if (resetError) {
                 console.error("Daily reset error:", resetError);
@@ -61,7 +58,6 @@ const apiKey = async (req, res, next) => {
             keyRecord.last_request_date = today;
         }
 
-        // Check daily limit
         if (keyRecord.requests_today >= keyRecord.daily_limit) {
             return res.status(429).json({
                 success: false,
@@ -73,8 +69,8 @@ const apiKey = async (req, res, next) => {
             });
         }
 
-        // Count this request
-        const newRequestCount = keyRecord.requests_today + 1;
+        const newRequestCount =
+            keyRecord.requests_today + 1;
 
         const { error: updateError } = await supabase
             .from("api_keys")
@@ -85,7 +81,10 @@ const apiKey = async (req, res, next) => {
             .eq("id", keyRecord.id);
 
         if (updateError) {
-            console.error("API usage update error:", updateError);
+            console.error(
+                "API usage update error:",
+                updateError
+            );
 
             return res.status(500).json({
                 success: false,
@@ -93,15 +92,18 @@ const apiKey = async (req, res, next) => {
             });
         }
 
-        // Attach API-key information to request
-        req.apiKey = keyRecord;
-
-        req.apiKey.requests_today = newRequestCount;
+        req.apiKey = {
+            ...keyRecord,
+            requests_today: newRequestCount
+        };
 
         next();
 
     } catch (error) {
-        console.error("API key middleware error:", error);
+        console.error(
+            "API key middleware error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
