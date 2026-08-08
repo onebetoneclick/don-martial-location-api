@@ -31,14 +31,16 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Test route
+// ============================================
+// TEST ROUTE
+// ============================================
+
 app.get("/", (req, res) => {
     res.json({
         success: true,
         message: "Don Martial Location API is running 🚀"
     });
 });
-
 
 // ============================================
 // LOCATION API ROUTES
@@ -47,6 +49,7 @@ app.get("/", (req, res) => {
 import countriesRoute from "./routes/countries.js";
 import statesRoute from "./routes/states.js";
 import lgasRoute from "./routes/lgas.js";
+import apiKeysRoute from "./routes/apiKeys.js";
 
 import apiKey from "./middleware/apiKey.js";
 
@@ -68,18 +71,14 @@ app.use(
     lgasRoute
 );
 
-
 // ============================================
 // API KEY ROUTE
 // ============================================
 
-import apiKeysRoute from "./routes/apiKeys.js";
-
 app.use(
-    "/api/v1/keys",
+    "/api/v1/api-keys",
     apiKeysRoute
 );
-
 
 // ============================================
 // START SERVER
