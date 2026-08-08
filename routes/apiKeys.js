@@ -1,9 +1,5 @@
 import express from "express";
-
-import {
-    generateApiKey
-} from "../controllers/apiKeyController.js";
-
+import { generateApiKey } from "../controllers/apiKeyController.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
